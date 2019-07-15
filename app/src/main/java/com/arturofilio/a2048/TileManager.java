@@ -9,15 +9,17 @@ import com.arturofilio.a2048.sprites.Tile;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 
 public class TileManager implements TileManagerCallback, Sprite {
 
     private Resources resources;
     private int standardSize, screenWidth, screenHeight;
-    private Tile t;
     private ArrayList<Integer> drawables = new ArrayList<>();
     private HashMap<Integer, Bitmap> tileBitmaps = new HashMap<>();
     private Tile[][] grid = new Tile[4][4];
+    private boolean moving = false;
+    private ArrayList<Tile> movingTiles = new ArrayList<>();
 
     public TileManager(Resources resources, int standardSize, int screenWidth, int screenHeight) {
         this.resources = resources;
@@ -26,8 +28,8 @@ public class TileManager implements TileManagerCallback, Sprite {
         this.screenHeight = screenHeight;
         initBitmpas();
 
-        t = new Tile(standardSize, screenWidth, screenHeight, this, 1,1);
-        grid[1][1] = t;
+        initGame();
+
     }
 
     private void initBitmpas() {
@@ -55,6 +57,22 @@ public class TileManager implements TileManagerCallback, Sprite {
         }
     }
 
+    private void initGame() {
+        grid = new Tile[4][4];
+        movingTiles = new ArrayList<>();
+
+        for(int i = 0; i < 5; i++) {
+            int x = new Random().nextInt(4);
+            int y = new Random().nextInt(4);
+            if(grid[x][y] == null) {
+                Tile tile = new Tile(standardSize, screenWidth, screenHeight, this, x, y);
+                grid[x][y] = tile;
+            }  else {
+                i--;
+            }
+        }
+    }
+
     @Override
     public Bitmap getBitmap(int count) {
         return tileBitmaps.get(count);
@@ -62,28 +80,88 @@ public class TileManager implements TileManagerCallback, Sprite {
 
     @Override
     public void draw(Canvas canvas) {
-        t.draw(canvas);
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                if(grid[i][j] != null) {
+                    grid[i][j].draw(canvas);
+                }
+            }
+        }
     }
 
     @Override
     public void update() {
-        t.update();
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                if(grid[i][j] != null) {
+                    grid[i][j].update();
+                }
+            }
+        }
     }
 
     public void onSwipe(SwipeCallback.Direction direction) {
-        switch (direction) {
-            case UP:
-                t.move(0,1);
-                break;
-            case DOWN:
-                t.move(3,1);
-                break;
-            case LEFT:
-                t.move(1,0);
-                break;
-            case RIGHT:
-                t.move(1,3);
-                break;
+        if(!moving) {
+            moving = true;
+            Tile[][] newGrid = new Tile[4][4];
+
+            switch (direction) {
+                case UP:
+                    for (int i = 0; i < 4; i++) {
+                        for (int j = 0; j < 4; j++) {
+                            if (grid[i][j] != null) {
+                                newGrid[i][j] = grid[i][j];
+                                for (int k = i - 1; k >= 0 ; k--) {
+                                    if(newGrid[k][j] != null) {
+                                        newGrid[k][j] = grid[i][j];
+                                        if(newGrid[k+1][j] == grid[i][j]) {
+                                            newGrid[k+1][j] = null;
+                                        }
+                                    } else if (newGrid[k][j].getValue() == grid[i][j].getValue() &&
+                                            !newGrid[k][j].toIncrement()){
+                                        newGrid[k][j] = grid[i][j].increment();
+                                        if(newGrid[k+1][j]==grid[i][j]) {
+                                            newGrid[k+1][j] = null;
+                                        }
+                                    } else {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    for (int i = 0; i < 4; i++) {
+                        for (int j = 0; j < 4; j++) {
+                            Tile t = grid[i][j];
+                            Tile newT = null;
+                            int gridX = 0;
+                            int gridY = 0;
+                            for (int k = 0; k < 4; k++) {
+                                for (int l = 0; l < 4; l++) {
+                                    if(newGrid[k][l] == t) {
+                                        newT = newGrid[k][l];
+                                        gridX = k;
+                                        gridY = l;
+                                        break;
+                                    }
+                                }
+                            }
+                            if(newT != null) {
+                                movingTiles.add(t);
+                                t.move(gridX, gridY);
+                            }
+                        }
+                    }
+                    break;
+                case DOWN:
+                    break;
+                case LEFT:
+                    break;
+                case RIGHT:
+                    break;
+            }
+            grid = newGrid;
         }
     }
 
